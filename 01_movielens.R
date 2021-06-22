@@ -26,7 +26,6 @@
 
 ####. . . ii. Code provided ---------------------------------------------------------
 
-
 # Create edx set, validation set (final hold-out test set)
 
 # Note: this process could take a couple of minutes
@@ -90,18 +89,17 @@ saveRDS(validation,"data/validation.rda")
 rm(dl, ratings, movies, test_index, temp, movielens, removed)
 
 
+
 #### I. LOAD LIBRARIES ---------------------------------------------------------
 
 if(!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
 if(!require(gridExtra)) install.packages("gridExtra", repos = "http://cran.us.r-project.org")
-# if(!require(readr)) install.packages("readr", repos = "http://cran.us.r-project.org")
 if(!require(stringr)) install.packages("stringr", repos = "http://cran.us.r-project.org")
 if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
 if(!require(Matrix)) install.packages("Matrix", repos = "http://cran.us.r-project.org")
 
 library(kableExtra)
 library(gridExtra)
-# library(readr)
 library(stringr)
 library(lubridate)
 library(Matrix)
@@ -139,12 +137,19 @@ year(as_datetime(min(edx$timestamp))) # year of first rating
 year(as_datetime(max(edx$timestamp))) # year of last ratinge
 
 # Frequence of ratings (4 stars is the most frequent rating):
-edx %>%
+fig <- edx %>%
   ggplot(aes(rating)) +
   geom_bar(alpha=0.5,fill="#0072B2",colour="#0072B2") +
   xlab("Rating") +
   scale_y_continuous("Cases", labels = scales::comma) +
   theme_bw()
+fig
+
+# Create figure:
+png(filename="figs/ratings_frequence.png", width=1000, height=538)
+plot(fig)
+dev.off()
+
 
 # We can see that the title of each movie contains the release year. We would add a column to both sets with this value:
 
@@ -362,6 +367,15 @@ fig_rating_date <- grid.arrange(p1,p2, ncol = 2)
 # Here we can see all the plots together:
 fig_all <- grid.arrange(fig_movies,fig_genres,fig_users,fig_years,fig_rating_date, ncol = 1)
 
+# Create figure:
+png(filename="figs/average_ratings_by_variable.png", width=1145, height=1000)
+plot(fig_all)
+dev.off()
+
+# Remove objects:
+rm(fig, fig_all,fig_genres,fig_movies,fig_rating_date,fig_users,fig_years,p1,p2,rating_date,users,genres,movies,years)
+gc()
+memory.size (max=FALSE)
 
 
 #### IV. RMSE FUNCTION ---------------------------------------------------------
@@ -888,24 +902,16 @@ rmses <- sapply(lambdas,function(lambda){
 
 cbind(k,lambdas,rmses)
 
-# We could repeat the previous code for all folds. For practicality, i provide a URL to download the RDA file with the full results.
-
-
 
 ####. . . . . . V.X.III Load Entire Results from GitHub ------------------------------------
 
 
-### 
-# The entire calculations (all lambdas for the 10 folds) are available in one .rda object in the next url:
-# (download it manually, otherwise will show an error regarding the format of the file, no matter if you cloned the repository)
+# We could repeat the previous code for all folds. For practicality, i provide a URL to download the RDA file with the full results.
+# Remember that this process needs to be manually:
 # https://github.com/rafaelyanlab/movielens/raw/master/rda/tuning_results_lambda.rda
-# Then load it with the piece of code below.
-# rda object must be in your current working directory. Use getwd() to find out which is it.
-# THIS SECTION WORKS ONLY IF YOU SUCCESFULLY LOADED THE tuning_results_lambda.rda
-# Otherwise, continue with the next section 
-# Since this section is just explanatory, you don't need it for the rest of the code 
-###
+# And save the object on the folder "rda/".
 
+# Load object:
 tuning_results_lambda <- readRDS("rda/tuning_results_lambda.rda")
 
 # The RMSES for each lambda and each fold are:
@@ -957,7 +963,13 @@ k <- c(1:10)
 
 p_all <- sapply(k,plot_lambda)
 
-do.call("grid.arrange", c(p_all, ncol=3))
+p_all <- do.call("grid.arrange", c(p_all, ncol=3))
+
+# Create figure:
+png(filename="figs/tuning_for_lambda.png", width=1000, height=998)
+plot(p_all)
+dev.off()
+
 
 # We observe that the best lambda for each fold ranges between 4.55 and 5.15. But the one with the minimun mean RMSE is:
 lambdas[which.min(tuning_results_lambda$mean_rmse)]
@@ -1104,6 +1116,8 @@ edx_model_11 <- edx %>%
   select(movieId,userId,rating,rating_hat) %>%
   as.data.frame()
 
+saveRDS(edx_model_11,"rda/edx_model_11.rda")
+
 prediction <- validation %>% 
   left_join(b_m, by='movieId') %>%
   left_join(b_u, by='userId') %>%
@@ -1243,7 +1257,7 @@ edx_sparse_matrix <- sparseMatrix(
   as.integer(factor(edx_best_observations$movieId)),
   x=edx_best_observations$rating)
 
-# Now we got what we wanted:
+# Now we got what we want:
 
 dim(edx_sparse_matrix)
 
@@ -1332,7 +1346,7 @@ saveRDS(rmse_results,"rda/rmse_results.rda")
 # Now we can clear all the objects of the R environment (keep only the ones we will need) and use the garbage collection gc() to automatically
 # release memory from the objects we just cleared:
 
-rm(list=setdiff(ls(), c("edx_model_11_sparse","edx_model_11","RMSE")))
+rm(list=setdiff(ls(), c("edx_model_11_sparse","RMSE")))
 gc()
 memory.size (max=FALSE)
 
@@ -1346,6 +1360,8 @@ gc()
 memory.size (max=FALSE)
 
 # We assign the names of the users to the rows and the names of the movies to the column of the matrix.
+
+edx_model_11 <- readRDS("rda/edx_model_11.rda")
 
 colnames(edx_model_11_dense) <- edx_model_11 %>%
   distinct(movieId) %>%
@@ -1379,9 +1395,15 @@ pca_edx_residuals <- prcomp(edx_model_11_dense)
 saveRDS(pca_edx_residuals,"rda/pca_edx_residuals.rda")
 
 # If your computer crashes at some point with the code above, you can download the RDA object from:
-# FALTA SUBIR!!!!!
-# pca_edx_residuals <- readRDS("rda/pca_edx_residuals.rda")
-# Remember to download it and read it to R manually!!
+# Remember that this process needs to be manually:
+# https://github.com/rafaelyanlab/movielens/raw/master/rda/pca_edx_residuals.rda
+# And save the object on the folder "rda/".
+
+rm(edx_model_11_dense)
+gc()
+memory.size (max=FALSE)
+
+pca_edx_residuals <- readRDS("rda/pca_edx_residuals.rda")
 
 # Or you can try the following:
 # 1. Restart your R session in RStudio.
@@ -1435,7 +1457,7 @@ pareto <- 80
 pc_pareto <- max(variance_df$pc[which(variance_df$variation_accum<=pareto)]) + 1
 variance_accum_pareto <- variance_df$variation_accum[pc_pareto]
 
-variance_df %>%
+fig <- variance_df %>%
   ggplot(aes(x=pc)) +
   geom_bar(aes(y=variation_perc), stat="identity", alpha=0.5, fill="#0072B2", colour="#0072B2") +
   xlab("Principal Component") +
@@ -1448,6 +1470,14 @@ variance_df %>%
            hjust= 0,
            label= str_c(pc_pareto," PCs = ",round(variance_accum_pareto,2)," % of variance",sep=""),
            size= 5)
+
+fig
+
+# Create figure:
+png(filename="figs/scree_plot.png", width=1000, height=600)
+plot(fig)
+dev.off()
+
 
 # We can see that:
 # a). The first 100 principal components account just for the 21.82% of the variability:
@@ -1480,7 +1510,7 @@ rect <- data.frame(x1=c(0.015,-0.05),
                    y2=c(0,0.025),
                    r=c(2,1))
 
-pcs_movies %>%
+fig <- pcs_movies %>%
   ggplot() +
   geom_point(mapping=aes(PC1, PC2),colour="#0072B2",alpha=0.2) +
   ggtitle("PC1 vs PC2 of Movies")  +
@@ -1488,6 +1518,14 @@ pcs_movies %>%
   geom_rect(data=rect, mapping=aes(xmin=x1, xmax=x2, ymin=y1, ymax=y2), fill="#009E73", color="#009E73", alpha=0.2) +
   geom_text(data=rect, aes(x=x1+(x2-x1)/2, y=y1+(y2-y1)/2, label=r), size=3) +
   theme(plot.title = element_text(size = 12, face = "bold"))
+
+fig
+
+# Create figure:
+png(filename="figs/pcs_movies_pca.png", width=1000, height=873)
+plot(fig)
+dev.off()
+
 
 # For illustration purposes, we will focus just on the movies in the first 2 cuadrants:
 
@@ -1506,7 +1544,7 @@ pcs_movies_1 <- left_join(pcs_movies_1,edx_best_observations %>%
 highlight_movie <- c(6874,7438,1261,1215,904,1333,2455,2288,1345)
 highlight_df <- pcs_movies_1 %>% filter(movieId %in% highlight_movie)
 
-pcs_movies_1 %>%
+fig <- pcs_movies_1 %>%
   ggplot(aes(PC1, PC2)) +
   geom_point(colour="#0072B2",alpha=0.2) +
   geom_point(data=highlight_df,aes(x=PC1,y=PC2),colour="#D55E00",alpha=0.8) +
@@ -1514,6 +1552,15 @@ pcs_movies_1 %>%
   ggtitle("Movies Projected on PC1 and PC2 (1st Cuadrant)")  +
   theme_bw() +
   theme(plot.title = element_text(size = 12, face = "bold"))
+
+fig
+
+# Create figure:
+png(filename="figs/movies_pc1_pc2_1C_model12.png", width=1000, height=873)
+plot(fig)
+dev.off()
+
+
 
 # We can observe that, from the point of view of "patterns" PC1 and PC2, there are similarities among some gruesome movies like Kill Bill 1 and
 # Kill Bill 2, Evil Dead II and Army of Darkness (Evil Dead III), and some horror movies like Hitchcock's Rear Window and The Birds and some others
@@ -1532,7 +1579,7 @@ pcs_movies_2 <- left_join(pcs_movies_2,edx_best_observations %>%
 highlight_movie <- c(2421,2422,1918,2002,2338,1644,2411,2412,2642,2643,1378,1379)
 highlight_df <- pcs_movies_2 %>% filter(movieId %in% highlight_movie)
 
-pcs_movies_2 %>%
+fig <- pcs_movies_2 %>%
   ggplot(aes(PC1, PC2)) +
   geom_point(colour="#0072B2",alpha=0.2) +
   geom_point(data=highlight_df,aes(x=PC1,y=PC2),colour="#D55E00") +
@@ -1540,6 +1587,15 @@ pcs_movies_2 %>%
   ggtitle("Movies Projected on PC1 and PC2 (2nd Cuadrant)")  +
   theme_bw() +
   theme(plot.title = element_text(size = 12, face = "bold"))
+
+fig
+
+# Create figure:
+png(filename="figs/movies_pc1_pc2_2C_model12.png", width=1000, height=1300)
+plot(fig)
+dev.off()
+
+
 
 # Here we observe many movies and their sequels like Karate Kid Part II and Part III, Lethal Weapon 3 and Lethal Weapon 4,
 # I Know What You Did Last Summer and I Still Know What You Did Last Summer, Rocky IV and Rocky V, Superman III and Superman IV, and
@@ -1719,7 +1775,7 @@ memory.size (max=FALSE)
 
 # Now we create our sparse matrix with the best movies and users: 
 
-edx_best_observations <- readRDS("edx_best_observations.rda")
+edx_best_observations <- readRDS("rda/edx_best_observations.rda")
 
 edx_best_observation_sparse <- sparseMatrix(
   as.integer(factor(edx_best_observations$userId)),
@@ -1760,11 +1816,11 @@ edx_best_observation_dense[1:10,1:10]
 if(!require(eimpute)) install.packages("eimpute", repos = "http://cran.us.r-project.org")
 library(eimpute)
 
+edx_best_observation_dense <- readRDS("rda/edx_best_observation_dense.rda")
+
 rm(list=setdiff(ls(), c("edx_best_observation_dense","RMSE")))
 gc()
 memory.size (max=FALSE)
-
-edx_best_observation_dense <- readRDS("rda/edx_best_observation_dense.rda")
 
 # We define rank= 40 for approximating the low-rank matrix:
 
@@ -1892,9 +1948,13 @@ rmse_results <- rbind(rmse_results, data.frame(ID = method_number, Method = meth
 rmse_results
 range(prediction_results$ensemble)
 
-####. . . VII. Conclusions -----------------------------
+
+
+#### VII. Conclusions -----------------------------
+
 
 saveRDS(rmse_results,"rda/rmse_results.rda")
+saveRDS(prediction_results,"rda/prediction_results.rda")
 
 # To sum up, we have trained a total of 14 models:
 
@@ -1920,3 +1980,57 @@ saveRDS(rmse_results,"rda/rmse_results.rda")
 
 # Model 14 ensembles the predictions from models 12 and 13 by estimating the average of both models. This final algorithm proved to be the
 # best model in terms of RMSE.
+
+#### VIII. Prepare Objects for Rdm File -----------------------------
+
+# Here we will create some objects we will need in our rmd file:
+
+# 01 Extract Prediction Results for Examples
+
+prediction_results_extract <- prediction_results[c(285,1934,933,6164,6903,6737,5569,6203,990,3493),]
+
+saveRDS(prediction_results_extract,"rda/prediction_results_extract.rda")
+
+# 02 Example of Movie bias
+
+edx <- readRDS("data/edx.rda")
+
+mu <- mean(edx$rating)
+
+b_m <- edx %>% 
+  group_by(movieId,title) %>% 
+  summarize(mean_rating = mean(rating), mu = mu ,b_m = mean(rating - mu)) %>%
+  ungroup() %>%
+  slice_head(n = 10)
+
+saveRDS(b_m,"rda/b_m.rda")
+
+# 03 Mean RMSE of Lambda
+
+tuning_results_lambda <- readRDS("rda/tuning_results_lambda.rda")
+
+tuning_results_lambda <- tuning_results_lambda %>%
+  mutate(mean_rmse = rowMeans(select(., rmses1:rmses10))) 
+
+mean_rmse_lambdas <- tuning_results_lambda %>%
+  select(lambdas,mean_rmse)
+
+saveRDS(mean_rmse_lambdas,"rda/mean_rmse_lambdas.rda")
+
+# 04 dimensions of pca_edx_residuals
+
+pca_edx_residuals <- readRDS("rda/pca_edx_residuals.rda")
+
+dim_pca_x <- str_c(dim(pca_edx_residuals$x)[1]," x ",dim(pca_edx_residuals$x)[2],sep="")
+dim_pca_rotation <- str_c(dim(pca_edx_residuals$rotation)[1]," x ",dim(pca_edx_residuals$rotation)[2],sep="")
+
+saveRDS(dim_pca_x,"rda/dim_pca_x.rda")
+saveRDS(dim_pca_rotation,"rda/dim_pca_rotation.rda")
+
+# 05 eimpute extract
+
+edx_em_svd_matrix <- readRDS("rda/edx_em_svd_matrix.rda")
+
+edx_em_svd_matrix_extract <- edx_em_svd_matrix[1:10,1:10]
+
+saveRDS(edx_em_svd_matrix_extract,"rda/edx_em_svd_matrix_extract.rda")

@@ -18,6 +18,8 @@ urlcolor: blue
 ```{r setup, include=FALSE}
 # Default options of all chunks in the document:
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, size = 10,fig.pos = "!H", out.extra = "")
+
+# You need to run the entire R script "01_movielens.R" before running this rmd file. 
 ```
 \newpage
 
@@ -85,37 +87,27 @@ If a userId or a movieId is just in the _test set_, then we will remove it and a
 ## Data Exploration^[This pdf section corresponds to section "II. DATA EXPLORATION (DESCRIPTIVE STATISTICS)" and "III. RELATIONSHIP BETWEEN VARIABLES AND RATINGS" of the R script.].
 
 ```{r libraries}
-# Load libraries
-# if(!require(knitr)) install.packages("knitr", repos = "http://cran.us.r-project.org")
-# if(!require(rmarkdown)) install.packages("rmarkdown", repos = "http://cran.us.r-project.org")
-# if(!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
-
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
 if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
 if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
 
 if(!require(gridExtra)) install.packages("gridExtra", repos = "http://cran.us.r-project.org")
-#if(!require(readr)) install.packages("readr", repos = "http://cran.us.r-project.org")
 if(!require(stringr)) install.packages("stringr", repos = "http://cran.us.r-project.org")
 if(!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
 if(!require(Matrix)) install.packages("Matrix", repos = "http://cran.us.r-project.org")
 
-# library(kableExtra)
 library(tidyverse)
 library(caret)
-#library(data.table)
+library(data.table)
 library(gridExtra)
-#library(readr)
-#library(stringr)
+library(stringr)
 library(lubridate)
 library(Matrix)
 ```
 
 ```{r loading train set}
-# Note:
-# Before you continue make sure you run the R script "01_movielens" until section "INTRODUCTION ii. Code provided" where the edx and the validation sets are created and saved in the folder "data" of your working directory. 
-
-# This piece of code considers that you've already created the edx and validation sets:
+# This piece of code considers that you've already created the edx and validation sets or you have downloaded the entire project from GitHub:
+# 
 edx <- readRDS("data/edx.rda") 
 ```
 
@@ -1330,41 +1322,28 @@ pca_edx_residuals <- prcomp(edx_model_11_dense)
 ```
 
 This process can take several minutes (at least 1 hour), so we can check the results in the following object:
-```{r pca results, echo=T}
+```{r pca results, echo=T, eval = F}
 pca_edx_residuals <- readRDS("rda/pca_edx_residuals.rda")
 ```
 
+```{r dim objects}
+dim_pca_x <- readRDS("rda/dim_pca_x.rda")
+dim_pca_rotation <- readRDS("rda/dim_pca_rotation.rda")
+```
+
+saveRDS(dim_pca_x,"rda/dim_pca_x.rda")
+saveRDS(dim_pca_rotation,"rda/dim_pca_rotation.rda")
+
 The PCA results consist of:
 
-  * A matrix __x__ with the coordinates of users projected into each PC and dimensions `r dim(pca_edx_residuals$x)`.
-  * A matrix __rotation__ of eigenvectors and dimensions `r dim(pca_edx_residuals$rotation)`.
+  * A matrix __x__ with the coordinates of users projected into each PC and dimensions `r dim_pca_x`.
+  * A matrix __rotation__ of eigenvectors and dimensions `r dim_pca_rotation`.
   * A vector __sdev__ with the standard deviations of each PC.
 
 The variance explained by each Principal Component is shown in the following graph:
+
 ```{r scree plot, fig.cap="Variance accounted for each PC (Scree plot).", fig.align = 'center',fig.pos="H", out.width = '60%'}
-# Variance in %.
-pca_var_per <- round(pca_edx_residuals$sdev^2/sum(pca_edx_residuals$sdev^2)*100, 2) 
-
-variance_df <- data.frame(pc = 1:length(pca_var_per), variation_perc = pca_var_per) %>%
-  mutate(variation_accum = cumsum(variation_perc))
-
-pareto <- 80
-pc_pareto <- max(variance_df$pc[which(variance_df$variation_accum<=pareto)]) + 1
-variance_accum_pareto <- variance_df$variation_accum[pc_pareto]
-
-variance_df %>%
-  ggplot(aes(x=pc)) +
-  geom_bar(aes(y=variation_perc), stat="identity", alpha=0.5, fill="#0072B2", colour="#0072B2") +
-  xlab("Principal Component") +
-  ylab("Variance (%)") +
-  theme_bw() +
-  geom_vline(xintercept = pc_pareto,linetype = "dashed", col="red",size = 1) +
-  annotate(geom="text",
-           x= pc_pareto + 30,
-           y= 1,
-           hjust= 0,
-           label= str_c(pc_pareto," PCs = ",round(variance_accum_pareto,2)," % of variance",sep=""),
-           size= 5)
+knitr::include_graphics("figs/scree_plot.png")
 ```
 
 In our graph above we can see that 1379 components explain approximately 80% of the variance of our data. This means that the rest of the components account only the remaining 20%, thus we can leave them out and still train a model which fits the original data very accurately (as we previously illustrated with the tiger's image).
@@ -1439,9 +1418,9 @@ rownames(edx_em_svd_matrix) <- rownames(edx_best_observation_dense)
 Here is an extract of our low-rank approximation matrix:
 
 ```{r eimpute result}
-edx_em_svd_matrix <- readRDS("rda/edx_em_svd_matrix.rda")
+edx_em_svd_matrix_extract <- readRDS("rda/edx_em_svd_matrix_extract.rda")
 
-edx_em_svd_matrix[1:10,1:10] %>%
+edx_em_svd_matrix_extract %>%
   knitr::kable(caption = "Extraction of user-movie matrix using EM adn truncated SVD.") %>%
   kableExtra::kable_styling(latex_options = c("striped","hold_position", "scale_down"),full_width = F) %>%
   kableExtra::row_spec(0,bold=T)
