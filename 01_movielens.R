@@ -55,6 +55,7 @@ colnames(movies) <- c("movieId", "title", "genres")
 movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(levels(movieId))[movieId],
                                            title = as.character(title),
                                            genres = as.character(genres))
+
 # if using R 4.0 or later:
 movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(movieId),
                                            title = as.character(title),
@@ -181,7 +182,7 @@ validation <- validation %>%
   select(-date,-week)
 
 # Now our data set looks like this:
-edx
+head(edx)
 
 
 
@@ -1806,7 +1807,7 @@ edx_best_observation_dense[edx_best_observation_dense == 0] <- NA
 
 edx_best_observation_dense[1:10,1:10]
 
-
+saveRDS(edx_best_observation_dense,"rda/edx_best_observation_dense,rda")
 
 ####. . . . . . VI.IV.II eimpute Package -----------------------------------------------------------
 
@@ -1816,11 +1817,10 @@ edx_best_observation_dense[1:10,1:10]
 if(!require(eimpute)) install.packages("eimpute", repos = "http://cran.us.r-project.org")
 library(eimpute)
 
-edx_best_observation_dense <- readRDS("rda/edx_best_observation_dense.rda")
-
 rm(list=setdiff(ls(), c("edx_best_observation_dense","RMSE")))
 gc()
 memory.size (max=FALSE)
+
 
 # We define rank= 40 for approximating the low-rank matrix:
 
@@ -2028,8 +2028,6 @@ saveRDS(dim_pca_x,"rda/dim_pca_x.rda")
 saveRDS(dim_pca_rotation,"rda/dim_pca_rotation.rda")
 
 # 05 eimpute extract
-
-edx_em_svd_matrix <- readRDS("rda/edx_em_svd_matrix.rda")
 
 edx_em_svd_matrix_extract <- edx_em_svd_matrix[1:10,1:10]
 
