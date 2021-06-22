@@ -2032,3 +2032,11 @@ saveRDS(dim_pca_rotation,"rda/dim_pca_rotation.rda")
 edx_em_svd_matrix_extract <- edx_em_svd_matrix[1:10,1:10]
 
 saveRDS(edx_em_svd_matrix_extract,"rda/edx_em_svd_matrix_extract.rda")
+
+
+# 06 Example matrix dimensional reduction
+
+# Download rda manually:
+# https://github.com/rafaelyanlab/movielens/raw/master/rda/example_matrix_dim_reduction.rda
+# And save the object on the folder "rda/".
+example_matrix_dim_reduction <- readRDS("rda/example_matrix_dim_reduction.rda")
